@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>除夜の鐘タイムアタック</title>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Dots&family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --accent: #ffe082;
+    --accent-2: #ffd1dc;
+    --ink: #fff9e6;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; color:var(--ink);
+    font-family:'Noto Sans JP', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    background:#030307; overflow-x:hidden;
+  }
+  .neo-bg{position:fixed; inset:0; z-index:-3;
+    background:
+      radial-gradient(1000px 600px at 50% -10%, rgba(255,220,120,0.12), transparent 60%),
+      radial-gradient(800px 500px at 10% 10%, rgba(130,170,255,0.10), transparent 60%),
+      radial-gradient(900px 700px at 90% 0%, rgba(255,120,180,0.10), transparent 60%),
+      #030307;
+  }
+  .neo-grid{position:fixed; inset:0; z-index:-2; pointer-events:none}
+  .neo-grid::after{content:""; position:absolute; inset:0;
+    background-image:linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px);
+    background-size:60px 60px;
+    -webkit-mask-image:linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
+            mask-image:linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
+  }
+  #stars{position:fixed; inset:0; z-index:-1; pointer-events:none}
+  .star{position:absolute; background:#fff; border-radius:50%; opacity:.9; animation:floatStar 3s ease-in-out infinite alternate}
+  @keyframes floatStar{0%{transform:translateY(0)}100%{transform:translateY(-20px)}}
+
+  header{max-width:960px; margin:16px auto 0; text-align:center}
+  h1{font-family:'Zen Dots','Noto Sans JP',sans-serif; font-weight:900; letter-spacing:.02em; margin:0; color:var(--accent); text-shadow:0 6px 16px rgba(0,0,0,.6); font-size:clamp(28px,4.8vw,56px)}
+  .sub{opacity:.9; margin-top:6px; font-size:clamp(14px,2.2vw,18px)}
+
+  .card{max-width:960px; margin:16px auto; background:rgba(0,0,0,.72); border:1px solid rgba(255,224,130,.6); border-radius:24px; box-shadow:0 10px 40px rgba(255,224,130,.15); padding:20px}
+  .row{display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:clamp(18px,2.8vw,26px); color:#ffd166; font-weight:700}
+  .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}
+  .center{display:flex; align-items:center; justify-content:center}
+  .hint{opacity:.8; font-size:12px; font-style:italic; text-align:center; margin-top:4px}
+  .btn{appearance:none; cursor:pointer; border:1px solid #ffd166; background:#111; color:#fff; padding:10px 16px; border-radius:16px; font-weight:700}
+
+  /* Bell */
+  .bell-wrap{margin:8px auto; width:min(340px, 82vw)}
+  .bell{cursor:pointer; filter:drop-shadow(0 0 25px rgba(255,255,255,.3))}
+  .swing{animation:swing .22s ease-in-out}
+  @keyframes swing{0%{transform:rotate(-6deg)}50%{transform:rotate(0)}100%{transform:rotate(6deg)}}
+
+  /* Flash message pop */
+  #flash{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:20}
+  .flash-msg{font-weight:900; font-family:'Zen Dots','Noto Sans JP',sans-serif; color:#f0abfc; text-shadow:0 6px 16px rgba(0,0,0,.6); font-size:clamp(40px,8vw,80px);
+    animation:popIn .45s cubic-bezier(.2,.9,.2,1) forwards}
+  .flash-msg.finish{color:#fb7185; animation-duration:.6s}
+  @keyframes popIn{0%{opacity:0; transform:translateY(10px) scale(.1)}70%{opacity:1; transform:translateY(0) scale(1.2)}100%{opacity:1; transform:translateY(0) scale(1.15)}}
+  .fade-out{animation:fadeOut .25s ease forwards}
+  @keyframes fadeOut{to{opacity:0; transform:scale(.9)}}
+
+  /* Confetti fountain */
+  .confetti{position:fixed; inset:0; overflow:hidden; pointer-events:none; z-index:19}
+  .confetti > span{position:absolute; bottom:-2vh; border-radius:2px; will-change:transform, opacity; filter:drop-shadow(0 2px 6px rgba(0,0,0,.25))}
+  @keyframes confettiUp{0%{transform:translate(0,0) rotate(0deg); opacity:1}100%{transform:translate(var(--dx), calc(-1 * var(--dy))) rotate(720deg); opacity:0}}
+
+  /* Ranking */
+  .rank-card{max-width:960px; margin:16px auto 40px; background:rgba(0,0,0,.6); border:1px solid rgba(255,224,130,.4); border-radius:24px; padding:16px}
+  .rank-list{list-style:none; padding:0; margin:12px 0 0}
+  .rank-item{display:flex; align-items:center; justify-content:space-between; background:rgba(39,39,42,.6); border-radius:12px; padding:8px 12px; margin-bottom:8px}
+  .rank-item .pos{width:28px; text-align:right; font-family:ui-monospace,monospace}
+
+  /* Modal */
+  .modal{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); z-index:30}
+  .modal-inner{width:min(92%, 520px); background:#0f0f12; border:1px solid #ffd166; border-radius:24px; padding:22px; box-shadow:0 20px 50px rgba(0,0,0,.4); transform:scale(.95); opacity:0; animation:modalIn .3s ease forwards}
+  @keyframes modalIn{to{transform:scale(1); opacity:1}}
+  .input{width:100%; background:#1f1f25; border:1px solid #3a3a3f; color:#fff; border-radius:12px; padding:10px 12px; outline:none}
+
+  .footer{max-width:960px; margin:10px auto 26px; text-align:center; opacity:.7; font-size:12px}
+</style>
+</head>
+<body>
+  <div class="neo-bg"></div>
+  <div class="neo-grid"></div>
+  <div id="stars"></div>
+
+  <header>
+    <h1>除夜の鐘タイムアタック</h1>
+    <div id="sub" class="sub"></div>
+  </header>
+
+  <section class="card">
+    <div class="row">
+      <div>回数: <span id="count" class="mono" style="color:#fff">0</span> / 108</div>
+      <div>タイム: <span id="time" class="mono" style="color:#fff">0:00.000</span></div>
+    </div>
+
+    <div class="bell-wrap center">
+      <svg id="bell" class="bell" xmlns="http://www.w3.org/2000/svg" width="340" height="340" viewBox="0 0 300 300" aria-label="鐘">
+        <!-- 梁 -->
+        <rect x="30" y="42" width="240" height="18" rx="6" fill="#284428" />
+        <!-- 鐘本体（参考風） -->
+        <path d="M50 260h200c0-60-30-120-30-180H80c0 60-30 120-30 180z" fill="#2f5e2f" stroke="#154d15" stroke-width="4" />
+        <circle cx="150" cy="200" r="10" fill="#154d15" />
+        <!-- 突起列 -->
+        <g fill="#154d15">
+          <g>
+            <circle cx="70" cy="80" r="3"/><circle cx="80" cy="80" r="3"/><circle cx="90" cy="80" r="3"/>
+            <circle cx="100" cy="80" r="3"/><circle cx="110" cy="80" r="3"/><circle cx="120" cy="80" r="3"/>
+            <circle cx="130" cy="80" r="3"/><circle cx="140" cy="80" r="3"/><circle cx="150" cy="80" r="3"/>
+            <circle cx="160" cy="80" r="3"/><circle cx="170" cy="80" r="3"/><circle cx="180" cy="80" r="3"/>
+            <circle cx="190" cy="80" r="3"/><circle cx="200" cy="80" r="3"/><circle cx="210" cy="80" r="3"/>
+            <circle cx="220" cy="80" r="3"/>
+          </g>
+          <g>
+            <circle cx="70" cy="250" r="3"/><circle cx="80" cy="250" r="3"/><circle cx="90" cy="250" r="3"/>
+            <circle cx="100" cy="250" r="3"/><circle cx="110" cy="250" r="3"/><circle cx="120" cy="250" r="3"/>
+            <circle cx="130" cy="250" r="3"/><circle cx="140" cy="250" r="3"/><circle cx="150" cy="250" r="3"/>
+            <circle cx="160" cy="250" r="3"/><circle cx="170" cy="250" r="3"/><circle cx="180" cy="250" r="3"/>
+            <circle cx="190" cy="250" r="3"/><circle cx="200" cy="250" r="3"/><circle cx="210" cy="250" r="3"/>
+            <circle cx="220" cy="250" r="3"/>
+          </g>
+        </g>
+      </svg>
+    </div>
+    <div class="center" style="gap:8px; margin-top:6px">
+      <button id="reset" class="btn">リセット</button>
+    </div>
+    <div class="hint">※ 鐘をタップ / クリックで鳴らせます（連打OK）</div>
+  </section>
+
+  <section class="rank-card">
+    <h2 style="margin:0; color:#ffd166; font-size:20px">本日の最速ランキング</h2>
+    <ol id="rankList" class="rank-list"></ol>
+  </section>
+
+  <div id="flash" aria-live="polite"></div>
+  <div id="confetti" class="confetti"></div>
+
+  <!-- Finish Modal -->
+  <div id="modal" class="modal" style="display:none">
+    <div class="modal-inner">
+      <h3 style="margin:0 0 6px; color:#ffd166">FINISH! 記録を登録</h3>
+      <p style="margin:0 0 12px">タイム：<span id="finalTime" class="mono" style="font-weight:700">0:00.000</span></p>
+      <div style="display:flex; gap:8px">
+        <input id="nameInput" class="input" placeholder="名前（任意）" maxlength="16" />
+        <button id="saveBtn" class="btn">送信</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">QRでアクセス → みんなで連打して煩悩を祓おう！</div>
+
+<script>
+(function(){
+  const TOTAL = 108;
+  const SITE_TITLE = '除夜の鐘タイムアタック';
+  const MESSAGES = ['GOOD!','EXCELLENT!','AMAZING!','INCREDIBLE!','UNSTOPPABLE!'];
+  const LS_PREFIX = 'joya_bell_html_v1';
+  const dateKey = new Date().toISOString().slice(0,10);
+  const lsKey = LS_PREFIX + ':' + dateKey;
+
+  // DOM refs
+  const sub = document.getElementById('sub');
+  const countEl = document.getElementById('count');
+  const timeEl = document.getElementById('time');
+  const bell = document.getElementById('bell');
+  const resetBtn = document.getElementById('reset');
+  const flash = document.getElementById('flash');
+  const confettiWrap = document.getElementById('confetti');
+  const rankList = document.getElementById('rankList');
+  const modal = document.getElementById('modal');
+  const finalTime = document.getElementById('finalTime');
+  const saveBtn = document.getElementById('saveBtn');
+  const nameInput = document.getElementById('nameInput');
+  const stars = document.getElementById('stars');
+
+  // Header sub text
+  sub.textContent = dateKey + ' / 108回つけたタイムを競おう';
+
+  // Stars create
+  for(let i=0;i<70;i++){
+    const s = document.createElement('div');
+    const size = (i%3)+1;
+    s.className='star';
+    s.style.width = size+'px'; s.style.height=size+'px';
+    s.style.left = (i*37 % 100) + '%';
+    s.style.top = (i*13 % 100) + '%';
+    s.style.animationDelay = (-i*0.1)+'s';
+    stars.appendChild(s);
+  }
+
+  // State
+  let running=false; let startTs=null; let endTs=null; let now=0; let rafId=null;
+  let count=0; // source of truth
+
+  // Sound (短いクリック音) — 必要なら差し替え可
+  const audio = new Audio('data:audio/mp3;base64,//uQZAAAAAAAAAAAAAAAAAAAA');
+
+  function fmtTime(ms){
+    const s = Math.floor(ms/1000); const m = Math.floor(s/60); const sec = s%60; const msPart = ms%1000;
+    return m + ':' + String(sec).padStart(2,'0') + '.' + String(msPart).padStart(3,'0');
+  }
+
+  function updateTimer(){
+    if(running && startTs!==null && !endTs){ now = performance.now(); timeEl.textContent = fmtTime(Math.max(0, Math.round(now - startTs))); }
+    rafId = requestAnimationFrame(updateTimer);
+  }
+
+  function showFlash(msg, isFinish=false, duration=900){
+    const div = document.createElement('div');
+    div.className = 'flash-msg' + (isFinish?' finish':'');
+    div.textContent = msg;
+    flash.appendChild(div);
+    setTimeout(()=>{ div.classList.add('fade-out'); }, Math.max(200, duration-200));
+    setTimeout(()=>{ div.remove(); }, duration+300);
+    // Confetti burst
+    launchConfetti(isFinish?360:180, isFinish?120:90);
+  }
+
+  function launchConfetti(particles=180, spread=100){
+    const seed = Date.now();
+    for(let i=0;i<particles;i++){
+      const r = Math.sin((seed+i)*9301+49297)*233280 % 1; // pseudo-rand
+      const span = document.createElement('span');
+      const angle = (r - 0.5) * spread; // -spread/2 ~ +spread/2
+      const rad = angle * Math.PI / 180;
+      const power = (0.5 + (r<0? -r : r) * 0.5) * 60; // 30~60vh
+      const dx = Math.cos(rad) * power; // vw換算で良い感じに
+      const dy = Math.sin(rad) * power * 0.9 + power; // 上方向距離
+      const size = 4 + Math.floor(Math.abs(r)*8);
+      const hue = Math.floor(Math.abs(r)*360);
+      const delay = Math.abs(Math.sin((seed+i*3))) * 0.12;
+      const left = 50 + (Math.sin(seed + i*7) * 3); // 画面下中央±3%
+      const duration = 1.2 + Math.abs(r)*0.9;
+      span.style.left = left + '%';
+      span.style.width = size + 'px';
+      span.style.height = size + 'px';
+      span.style.background = `hsl(${hue} 90% 60%)`;
+      span.style.borderRadius = (i%3===0?'50%':'2px');
+      span.style.animation = `confettiUp ${duration}s ease-out forwards`;
+      span.style.setProperty('--dx', dx+'vw');
+      span.style.setProperty('--dy', dy+'vh');
+      span.style.animationDelay = delay+'s';
+      confettiWrap.appendChild(span);
+      span.addEventListener('animationend', ()=> span.remove());
+    }
+  }
+
+  function onStrike(){
+    if(!running){ running=true; startTs=performance.now(); now=startTs; updateTimer(); }
+    if(count>=TOTAL) return;
+    count = Math.min(count+1, TOTAL);
+    countEl.textContent = String(count);
+    // swing
+    bell.classList.remove('swing'); void bell.offsetWidth; bell.classList.add('swing');
+    // sound
+    audio.currentTime = 0; audio.play().catch(()=>{});
+
+    // milestone every 10 except 108 (handled by finish)
+    if(count % 10 === 0 && count < TOTAL){
+      const msg = MESSAGES[(count/10 - 1) % MESSAGES.length];
+      showFlash(msg, false, 800);
+    }
+
+    if(count >= TOTAL && !endTs){
+      endTs = performance.now();
+      timeEl.textContent = fmtTime(Math.max(0, Math.round(endTs - startTs)));
+      // FINISH長め表示→その後モーダル
+      showFlash('FINISH!', true, 2200);
+      setTimeout(()=>{
+        finalTime.textContent = fmtTime(Math.max(0, Math.round(endTs - startTs)));
+        modal.style.display = 'flex';
+        nameInput.focus();
+      }, 2200);
+    }
+  }
+
+  function reset(){
+    running=false; startTs=null; endTs=null; now=0; cancelAnimationFrame(rafId);
+    count=0; countEl.textContent='0'; timeEl.textContent='0:00.000';
+    modal.style.display='none'; nameInput.value='';
+  }
+
+  function loadRanks(){
+    try{ const raw = localStorage.getItem(lsKey); return raw? JSON.parse(raw): []; }catch{ return []; }
+  }
+  function saveRanks(list){ localStorage.setItem(lsKey, JSON.stringify(list)); }
+  function renderRanks(){
+    const list = loadRanks();
+    rankList.innerHTML = '';
+    if(list.length===0){ rankList.innerHTML = '<li style="opacity:.8">まだ記録がありません。</li>'; return; }
+    list.slice(0,20).forEach((r, i)=>{
+      const li = document.createElement('li'); li.className='rank-item';
+      li.innerHTML = `<span class="pos">${i+1}</span><span style="flex:1; padding:0 8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${(r.name||'ななし')}</span><span class="mono">${fmtTime(r.time_ms)}</span>`;
+      rankList.appendChild(li);
+    });
+  }
+
+  // Events
+  bell.addEventListener('pointerdown', onStrike);
+  resetBtn.addEventListener('click', reset);
+  saveBtn.addEventListener('click', ()=>{
+    if(!endTs || !startTs) return;
+    const entry = { name: nameInput.value.trim() || 'ななし', time_ms: Math.max(0, Math.round(endTs - startTs)) };
+    const list = loadRanks().concat(entry).sort((a,b)=> a.time_ms - b.time_ms).slice(0,50);
+    saveRanks(list); renderRanks(); modal.style.display='none';
+  });
+
+  renderRanks();
+})();
+</script>
+</body>
+</html>
